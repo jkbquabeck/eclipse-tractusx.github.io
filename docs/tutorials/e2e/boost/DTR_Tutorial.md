@@ -122,7 +122,7 @@ Action (Bob): Create the contract policy using the following command:
 
 #### Negotiation
 
-The DTR Asset from Bob is now available for Alice to request via contract negotiation. But at the moment it is still empty. Alice has to register Digital Twin (DT) at her DTR.
+The DTR Asset from Bob is now available for Alice to request via contract negotiation. Currently it is still empty. Alice has to register Digital Twin (DT) at her DTR.
 SOURCE FOR THIS: https://github.com/eclipse-tractusx/sldt-digital-twin-registry/tree/main/docs#access-control-to-digital-twins-based-on-the-bpn-business-partner-number-tenantid
 Continue the tutorial in Consume Digital Twins
 
@@ -151,16 +151,12 @@ We can use the following command for this: Create Contract definition
 
 #### Register/create a Digital Twin at the DTR
 
-Now that we have hosted our submodel at the BDS and offered it at the EDC for sovereign data exchange, we want to connect it to the Digital Twin it belongs to and make it more accessible for consumption. This is where the DTR provides it value.
+Now that we have hosted our submodel at the BDS and offered it at the EDC for sovereign data exchange. Therefore we want to connect it to a Digital Twin and make it findable for consumers via the DTR.
 The registration of a digital twin in Catena-X is equivalent to the creation of a new digital twin. Thus, a data provider should always ensure that there is no shell-descriptor created for the respective “specificAssetIds” yet to avoid duplicates. The specificAssetId refers to the part id of the original asset. Usually the “manufacturerPartId”.
 In this tutorial we have first developed our submodel and now create the digital twin afterwards. Thus we have to make sure to create the Digital Twin in a way that it is consistent with the information of the data in the submodel. A very important part of this consistency is to use the same shellId (“id” in UUID). This ID uniquely links the two objects.
 (In a later section of this tutorial we will also go through the reversed process of adding a submodel to an existing digital twin.)
-To achieve this consistency and connection the following values need to be equal:
 
-- bullet one
-- bulet two
-
-With the following command you can register/create a digital twin at the DTR. Fill out the marked fields with the values provided in the submodel as explained above.
+To register/create a new digital twin at the DTR use the following command:
 
 ```curl
 POST /shell-descriptors
@@ -181,66 +177,58 @@ POST /shell-descriptors
         ]
       }
     }
-  ], Quelle nur der obere Teil, weil hier nur DT erstellt werden soll. Submodel Descriptor kommt danach.
+  ]
   ```
 
 You have now successfully created/registered a Digital Twin at your DTR.  Right now it is still empty. Thus, the next step is to reference our submodel in the Digital Twin to make it findable for consumers.
 
 #### Reference a Submodel in the Digital Twin
 
-Hier packen wir den submodelDescriptor zum DT hinzu, der dann auf das Data Offering verweist
-Verweis via DSP subprotocol. D.h. wir verweisen direkt auf das Offering (dsp Endpoint = EDC Endpoint, id=Asset bzw contract Id)
+To link our submodel with the digital twin, submodel descriptors can be added to the digital
+When adding a submodel to an existing digital twin, it is important to use the correct Catena-X Id/shell-descriptor. This has to be added for the parameter "id", e.g. "id": "e5c96ab5-896a-482c-8761-efd74777ca97".
+
+To reference the endoint of the submodel we use the DSP protocol. Thus you have to provide the subprotocolBody with the Id of the contract definition/asset (?) as well as the dspEndpoint of the EDC.
 
 ```curl
-"subprotocol": "DSP",
-            "subprotocolBody": "id=123;dspEndpoint=http://edc.control.plane/api/v1/dsp",
-            "subprotocolBodyEncoding": "plain",
-            "securityAttributes": [
-              {
-                "type": "NONE",
-                "key": "NONE",
-                "value": "NONE"
-              }
-            ]
+POST /shell-descriptors/{{aasId}}
 
-"submodelDescriptors": [
+{
+  "id": "e5c96ab5-896a-482c-8761-efd74777ca97",  
+  "semanticId": {
+    "type": "ExternalReference",
+    "keys": [
+      {
+        "type": "GlobalReference",
+        "value": "urn:bamm:io.catenax.material_for_recycling:1.1.0#MaterialForRecycling"
+      }
+    ]
+  },
+  "endpoints": [
     {
-      "id": "e5c96ab5-896a-482c-8761-efd74777ca97",
-      "semanticId": {
-        "type": "ExternalReference",
-        "keys": [
+      "interface": "SUBMODEL-3.0",
+      "protocolInformation": {
+        "href": "https://edc.data.plane/mypath/submodel",
+        "endpointProtocol": "HTTP",
+        "endpointProtocolVersion": [
+          "1.1"
+        ],
+        "subprotocol": "DSP",
+        "subprotocolBody": "id=123;dspEndpoint=http://edc.control.plane/api/v1/dsp",
+        "subprotocolBodyEncoding": "plain",
+        "securityAttributes": [
           {
-            "type": "GlobalReference",
-            "value": "urn:bamm:io.catenax.material_for_recycling:1.1.0#MaterialForRecycling"
+            "type": "NONE",
+            "key": "NONE",
+            "value": "NONE"
           }
         ]
-      },
-      "endpoints": [
-        {
-          "interface": "SUBMODEL-3.0",
-          "protocolInformation": {
-            "href": "https://edc.data.plane/mypath/submodel",
-            "endpointProtocol": "HTTP",
-            "endpointProtocolVersion": [
-              "1.1"
-            ],
-            "subprotocol": "DSP",
-            "subprotocolBody": "id=123;dspEndpoint=http://edc.control.plane/api/v1/dsp",
-            "subprotocolBodyEncoding": "plain",
-            "securityAttributes": [
-              {
-                "type": "NONE",
-                "key": "NONE",
-                "value": "NONE"
-              }
-            ]
-          }
-        }
-      ]
+      }
     }
   ]
-} Quelle, nur der untere Part
+}
 ```
+
+You have now successfully added a submodel descriptor to the digital twin and made it accessible for comsumption. In the next step of the tutorial you will learn to find and consume digital twins.
 
 #### Registering new Submodels at an existing Digital Twins
 
@@ -249,6 +237,48 @@ If you want to add a submodel to an already existing digital twin, you just need
 Lets also go through this process. …
 
 ### Find and consume a Digital Twin
+
+Alice, the data consumer, now wants to fetch Bob's digital twin. She knows Bob and therefore knows his BPN. With this BPN, she can now determine Bob's EDC endpoint using the EDC Discovery Service. This is our initial situation. Alice knows Bob's EDC endpoint.
+
+In general, Alice's only responsibility is to deploy a connector, negotiate for access and terms of usage and finally fetch the data from the right offers. A detailed interaction flow is detailed in the [Digital Twin KIT - Fetching a supplier's twin](https://eclipse-tractusx.github.io/docs-kits/kits/Digital%20Twin%20Kit/Software%20Development%20View/dt-kit-interaction-patterns#1-fetching-a-suppliers-twin).
+
+But step by step. First of all, Alice wants to see Bob's DTR. Use the following API POST for this:
+
+`POST /catalog/request with filter looking for DTR`
+
+You will receive the `dcat:Dataset for Bob's DTR`. A negotiation for the DTR can now take place. You retrieve a token for this, which you get back in return if the negotiation is successful.
+
+![Step1](assets/Step1.png)
+
+In the second step, Alice can use this access token to access Bob's DTR directly and perform a lookup there. As feedback, she receives the AAS IDs that she is authorised to see. Use the following API GET for this:
+
+`GET /lookup/shells?assetIds=xyz`
+
+She receives the AAS Id's as feedback.
+
+![Step2](assets/Step2.png)
+
+Now Alice can get the AAS descriptors because she now has the AAS IDs. Use the following API GET for this:
+
+`GET /shell-descriptors/{{aas-id}} with aas-id encoded base64url`
+
+In response, Alice receives the AAS descriptor she needs. This contains the submodel descriptors. These contain the location of the submodels.
+
+![Step3](assets/Step3.png)
+
+Now the process is repeating itself. Alice performs a catalo request again and can now use the dataset IDs as a filter. Use the following API POST for this:
+
+`POST /catalog/request with filter looking for Dataset-ID`
+
+A negotiation for the Submodel Server can now take place. You retrieve a token for this, which you get back in return if the negotiation is successful.
+
+![Step4](assets/Step4.png)
+
+The submodel server can now be accessed directly, which returns the actual data in response. Use the following API GET for this:
+
+![Step5](assets/Step5.png)
+
+**Congratulations, you've got a first digital twin from a customer!!!**
 
 ## Notice
 
