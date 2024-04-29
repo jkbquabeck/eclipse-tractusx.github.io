@@ -8,7 +8,7 @@ This tutorial focuses on the working with the DTR. You will learn what the DTR i
 
 ## Introduction
 
-Catena-X uses the Asset Administration Shell (AAS) to represent digital twins. Such a digital twin is basically a shell with an ID (“shellId”) in UUID-format that makes it uniquely identifiable and contains an ID that connects the shell with the original asset it represents (e.g. the “manufacturerPartId”). This shell also contains SubmodelDescriptors which reference to submodels that contain the actual data of specific aspects of the asset.
+Catena-X uses the Asset Administration Shell (AAS) to represent digital twins. Such a digital twin is basically a shell with an ID in UUID-format that makes it uniquely identifiable. Also it contains IDs ("specificAssetIds") that connect the shell with the original asset it represents (e.g. the "manufacturerPartId"). The shell also contains SubmodelDescriptors which reference to submodels that contain the actual data of specific aspects of the asset.
 
 The Digital Twin Registry (DTR) contains a list of all registered digital twins of the owner and therefore acts as an address book for Digital Twins. With the DTR of a data provider, a data consumer can therefore find digital twin and also get directed to the desired submodels of the twin.
 
@@ -32,8 +32,10 @@ This tutorial will guide you through the steps outlined above. For a deeper unde
 
 #### Create the DTR asset
 
-To ensure that Bob’s DTR becomes visible for Alice and to start the data exchange between them, Bob has to create a data asset.
-Action (Bob): Create an asset using the following command:
+To ensure that Bob's DTR becomes visible for Alice and to start the data exchange between them, Bob has to create a data asset.
+
+Action (Bob): Create a data asset using the following command:
+
 (note: that the "asset:prop:type" is standardized with "data.core.digitalTwinRegistry" for the Digital Twin Registry.)
 
 ```curl
@@ -68,7 +70,7 @@ Action (Bob): Create an asset using the following command:
 
 #### Create a policy
 
-After bob has created an asset, he must define a BPN-restrictive policy in order to give Alice access to the asset. This policy is not standardized and can be chosen according to the needs of Alice. Bob wants to define that only Alice can see the DTR Asset.
+After Bob has created an data asset, he must define a BPN-restrictive policy in order to give Alice access to the asset. This policy is not standardized and can be chosen according to its needs. Bob wants to define the policy that only Alice can see the DTR Asset.
 
 Action (Bob): Defines the access policy using the following command:
 
@@ -101,7 +103,8 @@ Action (Bob): Defines the access policy using the following command:
 
 #### Contract Definition
 
-As an Access Policy has already been created, a Contract Definition must be created and linked into the data asset.
+To offer the DTR in his EDC Catalog, Bob has to create a contract definition. This contains linking the data asset with the policy.
+
 Action (Bob): Create the contract policy using the following command:
 
 ```curl
@@ -120,11 +123,9 @@ Action (Bob): Create the contract policy using the following command:
 }
 ```
 
-#### Negotiation
+The DTR Asset from Bob is now available for Alice to request via contract negotiation. Currently it is still empty. Therefore Bob will register his first digital twin in the next step of this tutorial.
 
-The DTR Asset from Bob is now available for Alice to request via contract negotiation. Currently it is still empty. Alice has to register Digital Twin (DT) at her DTR.
-SOURCE FOR THIS: https://github.com/eclipse-tractusx/sldt-digital-twin-registry/tree/main/docs#access-control-to-digital-twins-based-on-the-bpn-business-partner-number-tenantid
-Continue the tutorial in Consume Digital Twins
+Continue the tutorial in [Register a Digital](#register-a-digital-twin) Twin.
 
 ### Register a Digital Twin
 
@@ -137,26 +138,121 @@ The basic steps for providing digital twins with the DTR contain:
 
 #### Create a submodel
 
-For this tutorial we provide you with a Catena-X compliant submodel. Thefore the first step is already taken care of.
+Submodels needs to be compliant to the domain specified standards. Bob has already prepaired the submodel he wants to share with Alice. Thefore the first step is already taken care of.
 
 #### Host/store a submodel
 
-As a data provider you need to host/store your submodels somewhere. Usually a submodel server is used for this task. For this tutorial we provide a service called "backend-data-service" (short BDS). This service fulfills the role of the submodel server in this tutorial. It can store any text based data (e.g. JSON, XML, plain text) under a specific ID. This data can be received again, by using the same ID. As the data provider we will use this service to host our data.
-Use the following command to host the submodel on the BDS. (./1-create-data.sh).
+Bob also needs to store his submodels somewhere. Usually a submodel server is used for this task. For this tutorial a service called "backend-data-service" (short BDS) is provided. This service fulfills the role of the submodel server. It can store any text based data (e.g. JSON, XML, plain text) under a specific ID. This data can be received again, by using the same ID. Bob will use this service to host his data.
+
+Action (Bob): Store submodel on the BDS using the following command:
+
+```curl
+id="bobs-data"
+bdsBaseUrl="http://localhost/bobs-bds"
+clusterInternalBdsBaseUrl="http://bobs-bds-bds"
+
+curl -i -X POST "${bdsBaseUrl}/data/${id}" -H "Content-Type: application/json" --data-raw '{
+    "diameter": 380,
+    "length": 810,
+    "width": 590,
+    "weight": 85,
+    "height": 610
+}'
+```
 
 #### Create Contract Definition at EDC with the submodel
 
-In the last step, we hosted/stored our submodel in the BDS. However, because we want to preserve data sovereignty, we cannot directly release access to the BDS. Instead, the data exchange shall take place via the EDC. In this step, we therefore create a data offering in the EDC, which contains the submodel in the BDS.
-We can use the following command for this: Create Contract definition
+Bob has now stored his submodel on the BDS. However, because he wants to preserve data sovereignty over his data, he cannot directly provide access to the BDS. Instead, the data exchange shall take place via the EDC.
+
+Therefore Bob needs to create an according contract definition. This follows the same three steps as explained in "Create DTR Asset" of creating an data asset, creating a policy and finally creating the contract definition. 
+
+Info:
+
+edcManagementBaseUrl="http://localhost/bob/management"
+edcApiKey="password"
+
+#Asset
+#assetId="$(uuidgen)"
+assetId="0bc6a8af-8682-4dba-86b1-0433f9762e42"
+clusterInternalBdsBaseUrl="http://bobs-bds-bds:8080"
+bdsDataId="bobs-data"
+assetUrl="${clusterInternalBdsBaseUrl}/data/${bdsDataId}"
+
+#Policy
+#policyId="$(uuidgen)"
+policyId="1bc6a8af-8682-4dba-86b1-0433f9762e42"
+
+#Contract Definition
+#contractDefinitionId="$(uuidgen)"
+contractDefinitionId="2bc6a8af-8682-4dba-86b1-0433f9762e42"
+
+Action (Bob): Create a data asset with the following commands:
+
+```curl
+curl -i -X POST "${edcManagementBaseUrl}/v3/assets" -H "X-Api-Key: ${edcApiKey}" -H "Content-Type: application/json" --data-raw "{
+    \"@context\": {},
+    \"@id\": \"${assetId}\",
+    \"properties\": {
+        \"description\": \"Product EDC Demo Asset\"
+    },
+    \"dataAddress\": {
+        \"@type\": \"DataAddress\",
+        \"baseUrl\": \"${assetUrl}\",
+        \"type\": \"HttpData\"
+    }
+}" | jq
+```
+Action (Bob): Create a Policy with the following commands:
+
+```curl
+curl -i -X POST "${edcManagementBaseUrl}/v2/policydefinitions" -H "X-Api-Key: ${edcApiKey}" -H "Content-Type: application/json" --data-raw "{
+    \"@context\": {
+        \"odrl\": \"http://www.w3.org/ns/odrl/2/\"
+    },
+    \"@type\": \"PolicyDefinitionRequestDto\",
+    \"@id\": \"${policyId}\",
+    \"policy\": {
+        \"@type\": \"Policy\",
+        \"odrl:permission\": [{
+            \"odrl:action\": \"USE\",
+            \"odrl:constraint\": {
+                \"@type\": \"LogicalConstraint\",
+                \"odrl:or\": []
+            }
+        }]
+    }
+}" | jq
+```
+Action (Bob): Create a contract definition with the following commands:
+
+```curl
+curl -i -X POST "${edcManagementBaseUrl}/v2/contractdefinitions" -H "X-Api-Key: ${edcApiKey}" -H "Content-Type: application/json" --data-raw "{
+    \"@context\": {},
+    \"@id\": \"${contractDefinitionId}\",
+    \"@type\": \"ContractDefinition\",
+    \"accessPolicyId\": \"${policyId}\",
+    \"contractPolicyId\": \"${policyId}\",
+    \"assetsSelector\" : {
+        \"@type\" : \"CriterionDto\",
+        \"operandLeft\": \"https://w3id.org/edc/v0.0.1/ns/id\",
+        \"operator\": \"=\",
+        \"operandRight\": \"${assetId}\"
+    }
+}" | jq
+```
+
+The submodel is now stored at the BDS and made available through a contract definition at the EDC.
 
 #### Register/create a Digital Twin at the DTR
 
-Now that we have hosted our submodel at the BDS and offered it at the EDC for sovereign data exchange. Therefore we want to connect it to a Digital Twin and make it findable for consumers via the DTR.
-The registration of a digital twin in Catena-X is equivalent to the creation of a new digital twin. Thus, a data provider should always ensure that there is no shell-descriptor created for the respective “specificAssetIds” yet to avoid duplicates. The specificAssetId refers to the part id of the original asset. Usually the “manufacturerPartId”.
-In this tutorial we have first developed our submodel and now create the digital twin afterwards. Thus we have to make sure to create the Digital Twin in a way that it is consistent with the information of the data in the submodel. A very important part of this consistency is to use the same shellId (“id” in UUID). This ID uniquely links the two objects.
-(In a later section of this tutorial we will also go through the reversed process of adding a submodel to an existing digital twin.)
+Now that Bob has stored his submodel at the BDS and offered it at the EDC for sovereign data exchange, he wants to make it findable via the DTR. This contains two steps:
 
-To register/create a new digital twin at the DTR use the following command:
+- Register/create a Digital Twin at the DTR
+- Reference the submodel in the Digital Twin
+
+The registration of a digital twin in Catena-X is equivalent to the creation of a new digital twin. Thus, Bob should always ensure that there is no digital twin created for the respective “specificAssetIds” yet to avoid duplicates.
+
+Action (Bob): Create a new digital twin at the DTR with the following command:
 
 ```curl
 POST /shell-descriptors
@@ -180,12 +276,14 @@ POST /shell-descriptors
   ]
   ```
 
-You have now successfully created/registered a Digital Twin at your DTR.  Right now it is still empty. Thus, the next step is to reference our submodel in the Digital Twin to make it findable for consumers.
+Bob has now successfully created/registered a Digital Twin at his DTR.  Right now the Digital Twin is pretty empty, except the AAS-ID and the specificAssetIds.
+Thus, the next step for Bob is to reference his submodel in the Digital Twin to make it findable for consumers.
 
 #### Reference a Submodel in the Digital Twin
 
-To link our submodel with the digital twin, submodel descriptors can be added to the digital
-When adding a submodel to an existing digital twin, it is important to use the correct Catena-X Id/shell-descriptor. This has to be added for the parameter "id", e.g. "id": "e5c96ab5-896a-482c-8761-efd74777ca97".
+In order to reference the submodel in the digital twin, submodel descriptors can be added to the digital twin.
+
+When adding a submodel to an existing digital twin, it is important to use the correct AAS-Id. This has to be added for the parameter "id", e.g. "id": "e5c96ab5-896a-482c-8761-efd74777ca97".
 
 To reference the endoint of the submodel we use the DSP protocol. Thus you have to provide the subprotocolBody with the Id of the contract definition/asset (?) as well as the dspEndpoint of the EDC.
 
@@ -228,9 +326,9 @@ POST /shell-descriptors/{{aasId}}
 }
 ```
 
-You have now successfully added a submodel descriptor to the digital twin and made it accessible for comsumption. In the next step of the tutorial you will learn to find and consume digital twins.
+Bob has now successfully added a submodel descriptor to the digital twin and made the Submodel accessible for comsumption. In the next step of the tutorial Alice will find and consume the digital twin and its submodel.
 
-#### Registering new Submodels at an existing Digital Twins
+#### Registering new Submodels at existing Digital Twins
 
 If you want to add a submodel to an already existing digital twin, you just need to reference the ID (UUID )of the digital twin in the submodel to link the two.
 
@@ -238,11 +336,14 @@ Lets also go through this process. …
 
 ### Find and consume a Digital Twin
 
-Alice, the data consumer, now wants to fetch Bob's digital twin. She knows Bob and therefore knows his BPN. With this BPN, she can now determine Bob's EDC endpoint using the EDC Discovery Service. This is our initial situation. Alice knows Bob's EDC endpoint.
+Alice, the data consumer, now wants to fetch Bob's digital twin. Since she knows Bob, she knows his BPN. With this BPN, she can now determine Bob's EDC endpoint using the EDC Discovery Service. The Discovery Services are not part of this tutorial. So the tutorial starts with Alice already knowing Bob's EDC endpoint.
 
-In general, Alice's only responsibility is to deploy a connector, negotiate for access and terms of usage and finally fetch the data from the right offers. A detailed interaction flow is detailed in the [Digital Twin KIT - Fetching a supplier's twin](https://eclipse-tractusx.github.io/docs-kits/kits/Digital%20Twin%20Kit/Software%20Development%20View/dt-kit-interaction-patterns#1-fetching-a-suppliers-twin).
+In general, Alice's only responsibility is to deploy a connector, negotiate for access and terms of usage and finally fetch the data from the right offers.
+A detailed interaction flow is detailed in the [Digital Twin KIT - Fetching a supplier's twin](https://eclipse-tractusx.github.io/docs-kits/kits/Digital%20Twin%20Kit/Software%20Development%20View/dt-kit-interaction-patterns#1-fetching-a-suppliers-twin).
 
-But step by step. First of all, Alice wants to see Bob's DTR. Use the following API POST for this:
+But step by step. First of all, Alice wants to see Bob's DTR.
+
+Action (Alice): Use the following API POST to find Bob's DTR Asset.
 
 `POST /catalog/request with filter looking for DTR`
 
@@ -250,15 +351,19 @@ You will receive the `dcat:Dataset for Bob's DTR`. A negotiation for the DTR can
 
 ![Step1](assets/Step1.png)
 
-In the second step, Alice can use this access token to access Bob's DTR directly and perform a lookup there. As feedback, she receives the AAS IDs that she is authorised to see. Use the following API GET for this:
+In the second step, Alice can use this access token to access Bob's DTR directly and perform a lookup there. As feedback, she receives the AAS IDs that she is authorised to see.
+
+Action (Alice): Use the following API GET to receive the provided AAS Ids:
 
 `GET /lookup/shells?assetIds=xyz`
 
-She receives the AAS Id's as feedback.
+Alice receives a list of AAS Ids that she is allowed to see. This should include the digital twin created in the previous tutorial steps.
 
 ![Step2](assets/Step2.png)
 
-Now Alice can get the AAS descriptors because she now has the AAS IDs. Use the following API GET for this:
+Now Alice can get the AAS descriptors because she now has the AAS IDs.
+
+Action (Alice): Use the following API GET to the shell descriptors for the AAS ID.
 
 `GET /shell-descriptors/{{aas-id}} with aas-id encoded base64url`
 
@@ -266,15 +371,19 @@ In response, Alice receives the AAS descriptor she needs. This contains the subm
 
 ![Step3](assets/Step3.png)
 
-Now the process is repeating itself. Alice performs a catalo request again and can now use the dataset IDs as a filter. Use the following API POST for this:
+Now the process is repeating itself. Alice performs a catalog request again and can now use the dataset IDs as a filter. 
+
+Action (Alice): Use the following API POST to receive Bob's catalog with the Dataset-ID as a filter:
 
 `POST /catalog/request with filter looking for Dataset-ID`
 
-A negotiation for the Submodel Server can now take place. You retrieve a token for this, which you get back in return if the negotiation is successful.
+A negotiation for the Submodel Server can now take place. Alice retrieves a token for this, which she gets back in return if the negotiation is successful.
 
 ![Step4](assets/Step4.png)
 
-The submodel server can now be accessed directly, which returns the actual data in response. Use the following API GET for this:
+The relevant endpoint on the submodel server can now be accessed directly, which returns the actual data in response.
+
+Action (Alice): Use the following API GET to receive the data:
 
 ![Step5](assets/Step5.png)
 
