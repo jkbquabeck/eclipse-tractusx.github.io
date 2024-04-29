@@ -274,6 +274,7 @@ POST /shell-descriptors
       }
     }
   ]
+}
   ```
 
 Bob has now successfully created/registered a Digital Twin at his DTR.  Right now the Digital Twin is pretty empty, except the AAS-ID and the specificAssetIds.
