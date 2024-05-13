@@ -38,8 +38,10 @@ Action (Bob): Create a data asset using the following command:
 
 (note: that the "asset:prop:type" is standardized with "data.core.digitalTwinRegistry" for the Digital Twin Registry.)
 
-```curl
-{
+```curl --location 'http://dataprovider-controlplane.tx.test/management/v3/assets' \
+--header 'Content-Type: application/json' \
+--header 'X-Api-Key: TEST2' \
+--data-raw '{
    "@context":{
       "edc":"https://w3id.org/edc/v0.0.1/ns/",
       "cx-common":"https://w3id.org/catenax/ontology/common#",
@@ -60,12 +62,12 @@ Action (Bob): Create a data asset using the following command:
       "proxyBody":"true",
       "proxyMethod":"true",
       "proxyQueryParams":"true",
-      "oauth2:clientId":"{{REGISTRY_CLIENT_ID}}",
+      "oauth2:clientId":"satest02",
       "oauth2:clientSecretKey":"{{REGISTRY_CLIENT_SECRET_KEY}}",
-      "oauth2:tokenUrl":"{{REGISTRY_TOKEN_ENDPOINT}}",
+      "oauth2:tokenUrl":"http://centralidp.tx.test/auth/realms/CX-Central/protocol/openid-connect/token",
       "oauth2:scope":"{{REGISTRY_TOKEN_SCOPE}}"
    }
-}
+}'
 ```
 
 #### Create a policy
