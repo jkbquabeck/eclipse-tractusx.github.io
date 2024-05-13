@@ -38,9 +38,10 @@ Action (Bob): Create a data asset using the following command:
 
 (note: that the "asset:prop:type" is standardized with "data.core.digitalTwinRegistry" for the Digital Twin Registry.)
 
-```curl --location 'http://dataprovider-controlplane.tx.test/management/v3/assets' \
---header 'Content-Type: application/json' \
---header 'X-Api-Key: TEST2' \
+```shell
+curl -L 'https://dataprovider-controlplane.tx.test/management/v3/assets' \
+-H 'Content-Type: application/json' \
+-H 'X-Api-Key: TEST2' \
 --data-raw '{
    "@context":{
       "edc":"https://w3id.org/edc/v0.0.1/ns/",
@@ -48,7 +49,7 @@ Action (Bob): Create a data asset using the following command:
       "cx-taxo":"https://w3id.org/catenax/taxonomy#",
       "dct":"https://purl.org/dc/terms/"
    },
-   "@id":"{{ASSET_ID}}",
+   "@id":"registry-asset-demo",
    "properties":{
       "dct:type":{
          "@id":"cx-taxo:DigitalTwinRegistry"
@@ -57,13 +58,13 @@ Action (Bob): Create a data asset using the following command:
    "dataAddress":{
       "@type":"DataAddress",
       "type":"HttpData",
-      "baseUrl":"{{BACKEND_SERVICE}}",
+      "baseUrl":"http://umbrella-dataprovider-dtr:8080/api/v3.0",
       "proxyPath":"true",
       "proxyBody":"true",
       "proxyMethod":"true",
       "proxyQueryParams":"true",
       "oauth2:clientId":"satest02",
-      "oauth2:clientSecretKey":"{{REGISTRY_CLIENT_SECRET_KEY}}",
+      "oauth2:clientSecretKey":"edc-miw-keycloak-secret",
       "oauth2:tokenUrl":"http://centralidp.tx.test/auth/realms/CX-Central/protocol/openid-connect/token",
       "oauth2:scope":"{{REGISTRY_TOKEN_SCOPE}}"
    }
@@ -76,31 +77,59 @@ After Bob has created an data asset, he must define a BPN-restrictive policy in 
 
 Action (Bob): Defines the access policy using the following command:
 
-```curl
-{
+```shell
+curl -L 'https://dataprovider-controlplane.tx.test/management/v2/policydefinitions' \
+-H 'Content-Type: application/json' \
+-H 'X-Api-Key: TEST2' \
+--data-raw '{
     "@context": {
+        "edc":"https://w3id.org/edc/v0.0.1/ns/",
+        "odrl": "http://www.w3.org/ns/odrl/2/"
+    },
+    "@id": "id-3.0-trace-demo",
+    "@type": "edc:PolicyDefinition",
+    "edc:policy": {
+        "@type": "Policy",
+        "odrl:permission": []
+    }
+}'
+```
+
+or 
+
+```shell
+curl -L 'https://dataprovider-controlplane.tx.test/management/v2/policydefinitions' \
+-H 'Content-Type: application/json' \
+-H 'X-Api-Key: TEST2' \
+--data-raw '{
+    "@context": {
+        "edc":"https://w3id.org/edc/v0.0.1/ns/",
         "odrl": "http://www.w3.org/ns/odrl/2/"
     },
     "@type": "PolicyDefinitionRequestDto",
-    "@id": "{{POLICY_ID}}",
+    "@id": "id-3.0-trace-demo",
     "policy": {
-  "@type": "Policy",
-  "odrl:permission" : [{
-   "odrl:action" : "USE",
-   "odrl:constraint" : {
-    "@type": "LogicalConstraint",
-    "odrl:or" : [{
-     "@type" : "Constraint",
-     "odrl:leftOperand" : "BusinessPartnerNumber",
-     "odrl:operator" : {
-                        "@id": "odrl:eq"
-                    },
-     "odrl:rightOperand" : "{{CONSUMER_BPN}}"
-    }]
-   }
-  }]
+    "@type": "Policy",
+    "odrl:permission": [
+        {
+        "odrl:action": "USE",
+        "odrl:constraint": {
+            "@type": "AtomicConstraint",
+            "odrl:or": [
+            {
+                "@type": "Constraint",
+                "odrl:leftOperand": "PURPOSE",
+                "odrl:operator": {
+                "@id": "odrl:eq"
+                },
+                "odrl:rightOperand": "ID 3.0 Trace"
+            }
+            ]
+        }
+        }
+    ]
     }
-}
+}''
 ```
 
 #### Contract Definition
@@ -110,19 +139,25 @@ To offer the DTR in his EDC Catalog, Bob has to create a contract definition. Th
 Action (Bob): Create the contract policy using the following command:
 
 ```curl
-{
-    "@context": {},
-    "@id": "{{CONTRACT_DEFINITION_ID}}",
-    "@type": "ContractDefinition",
-    "accessPolicyId": "{{ACCESS_POLICY_ID}}",
-    "contractPolicyId": "{{CONTRACT_POLICY_ID}}",
-    "assetsSelector" : {
-        "@type" : "CriterionDto",
-        "operandLeft": "{{EDC_NAMESPACE}}id",
-        "operator": "=",
-        "operandRight": "{{ASSET_ID}}"
+curl -L 'https://dataprovider-controlplane.tx.test/management/v2/contractdefinitions' \
+-H 'Content-Type: application/json' \
+-H 'X-Api-Key: TEST2' \
+--data-raw '{
+    "@context": {
+        "edc":"https://w3id.org/edc/v0.0.1/ns/",
+        "odrl": "http://www.w3.org/ns/odrl/2/"
+    },
+    "@id": "registry-contract-demo",
+    "@type": "edc:ContractDefinition",
+    "edc:accessPolicyId": "id-3.0-trace-demo",
+    "edc:contractPolicyId": "id-3.0-trace-demo",
+    "edc:assetsSelector": {
+        "@type": "edc:Criterion",
+        "edc:operandLeft": "https://w3id.org/edc/v0.0.1/ns/id",
+        "edc:operator": "=",
+        "edc:operandRight": "registry-asset-demo"
     }
-}
+}'
 ```
 
 The DTR Asset from Bob is now available for Alice to request via contract negotiation. Currently it is still empty. Therefore Bob will register his first digital twin in the next step of this tutorial.
@@ -148,12 +183,13 @@ Bob also needs to store his submodels somewhere. Usually a submodel server is us
 
 Action (Bob): Store submodel on the BDS using the following command:
 
-```curl
+```shell
 id="bobs-data"
 bdsBaseUrl="http://localhost/bobs-bds"
 clusterInternalBdsBaseUrl="http://bobs-bds-bds"
 
-curl -i -X POST "${bdsBaseUrl}/data/${id}" -H "Content-Type: application/json" --data-raw '{
+curl -i -X POST "${bdsBaseUrl}/data/${id}" -H "Content-Type: application/json" 
+--data-raw '{
     "diameter": 380,
     "length": 810,
     "width": 590,
@@ -190,57 +226,68 @@ contractDefinitionId="2bc6a8af-8682-4dba-86b1-0433f9762e42"
 
 Action (Bob): Create a data asset with the following commands:
 
-```curl
-curl -i -X POST "${edcManagementBaseUrl}/v3/assets" -H "X-Api-Key: ${edcApiKey}" -H "Content-Type: application/json" --data-raw "{
-    \"@context\": {},
-    \"@id\": \"${assetId}\",
-    \"properties\": {
-        \"description\": \"Product EDC Demo Asset\"
+```shell
+curl -L 'https://dataprovider-controlplane.tx.test/management/v3/assets' \
+-H 'Content-Type: application/json' \
+-H 'X-Api-Key: TEST2' \
+--data-raw '{
+    "@context": {},
+    "@id": "${assetId}",
+    "properties": {
+        "description": "Product EDC Demo Asset"
     },
-    \"dataAddress\": {
-        \"@type\": \"DataAddress\",
-        \"baseUrl\": \"${assetUrl}\",
-        \"type\": \"HttpData\"
+    "dataAddress": {
+        "@type": "DataAddress",
+        "baseUrl": "${assetUrl}",
+        "type": "HttpData"
     }
-}" | jq
+}'
 ```
 Action (Bob): Create a Policy with the following commands:
 
-```curl
-curl -i -X POST "${edcManagementBaseUrl}/v2/policydefinitions" -H "X-Api-Key: ${edcApiKey}" -H "Content-Type: application/json" --data-raw "{
-    \"@context\": {
-        \"odrl\": \"http://www.w3.org/ns/odrl/2/\"
+```shell
+curl -L 'https://dataprovider-controlplane.tx.test/management/v2/policydefinitions' \
+-H 'Content-Type: application/json' \
+-H 'X-Api-Key: TEST2' \
+--data-raw '{
+    "@context": {
+        "odrl": "http://www.w3.org/ns/odrl/2/"
     },
-    \"@type\": \"PolicyDefinitionRequestDto\",
-    \"@id\": \"${policyId}\",
-    \"policy\": {
-        \"@type\": \"Policy\",
-        \"odrl:permission\": [{
-            \"odrl:action\": \"USE\",
-            \"odrl:constraint\": {
-                \"@type\": \"LogicalConstraint\",
-                \"odrl:or\": []
+    "@type": "PolicyDefinitionRequestDto",
+    "@id": "${policyId}",
+    "policy": {
+        "@type": "Policy",
+        "odrl:permission": [{
+            "odrl:action": "USE",
+            "odrl:constraint": {
+                "@type": "LogicalConstraint",
+                "odrl:or": []
             }
         }]
     }
-}" | jq
+}'
 ```
 Action (Bob): Create a contract definition with the following commands:
 
-```curl
-curl -i -X POST "${edcManagementBaseUrl}/v2/contractdefinitions" -H "X-Api-Key: ${edcApiKey}" -H "Content-Type: application/json" --data-raw "{
-    \"@context\": {},
-    \"@id\": \"${contractDefinitionId}\",
-    \"@type\": \"ContractDefinition\",
-    \"accessPolicyId\": \"${policyId}\",
-    \"contractPolicyId\": \"${policyId}\",
-    \"assetsSelector\" : {
-        \"@type\" : \"CriterionDto\",
-        \"operandLeft\": \"https://w3id.org/edc/v0.0.1/ns/id\",
-        \"operator\": \"=\",
-        \"operandRight\": \"${assetId}\"
+```shell
+curl -L 'https://dataprovider-controlplane.tx.test/management/v2/contractdefinitions' \
+-H 'Content-Type: application/json' \
+-H 'X-Api-Key: TEST2' \
+--data-raw '{
+    "@context": {
+        "odrl": "http://www.w3.org/ns/odrl/2/"
+    },
+    "@id": "${contractDefinitionId}",
+    "@type": "ContractDefinition",
+    "accessPolicyId": "${policyId}",
+    "contractPolicyId": "${policyId}",
+    "assetsSelector" : {
+        "@type" : "CriterionDto",
+        "operandLeft": "https://w3id.org/edc/v0.0.1/ns/id",
+        "operator": "=",
+        "operandRight": "${assetId}"
     }
-}" | jq
+}'
 ```
 
 The submodel is now stored at the BDS and made available through a contract definition at the EDC.
@@ -256,7 +303,7 @@ The registration of a digital twin in Catena-X is equivalent to the creation of 
 
 Action (Bob): Create a new digital twin at the DTR with the following command:
 
-```curl
+```shell
 POST /shell-descriptors
 {
   "id": "urn:uuid:e5c96ab5-896a-1234-8761-efd74777ca97",
@@ -290,7 +337,7 @@ When adding a submodel to an existing digital twin, it is important to use the c
 
 To reference the endoint of the submodel we use the DSP protocol. Thus you have to provide the subprotocolBody with the Id of the contract definition/asset (?) as well as the dspEndpoint of the EDC.
 
-```curl
+```shell
 POST /shell-descriptors/{{aasId}}
 
 {
