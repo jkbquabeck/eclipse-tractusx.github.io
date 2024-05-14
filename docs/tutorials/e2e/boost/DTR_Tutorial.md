@@ -86,7 +86,7 @@ curl -L 'https://dataprovider-controlplane.tx.test/management/v2/policydefinitio
         "edc":"https://w3id.org/edc/v0.0.1/ns/",
         "odrl": "http://www.w3.org/ns/odrl/2/"
     },
-    "@id": "id-3.0-trace-demo",
+    "@id": "registry-demo",
     "@type": "edc:PolicyDefinition",
     "edc:policy": {
         "@type": "Policy",
@@ -95,50 +95,13 @@ curl -L 'https://dataprovider-controlplane.tx.test/management/v2/policydefinitio
 }'
 ```
 
-or 
-
-```shell
-curl -L 'https://dataprovider-controlplane.tx.test/management/v2/policydefinitions' \
--H 'Content-Type: application/json' \
--H 'X-Api-Key: TEST2' \
---data-raw '{
-    "@context": {
-        "edc":"https://w3id.org/edc/v0.0.1/ns/",
-        "odrl": "http://www.w3.org/ns/odrl/2/"
-    },
-    "@type": "PolicyDefinitionRequestDto",
-    "@id": "id-3.0-trace-demo",
-    "policy": {
-    "@type": "Policy",
-    "odrl:permission": [
-        {
-        "odrl:action": "USE",
-        "odrl:constraint": {
-            "@type": "AtomicConstraint",
-            "odrl:or": [
-            {
-                "@type": "Constraint",
-                "odrl:leftOperand": "PURPOSE",
-                "odrl:operator": {
-                "@id": "odrl:eq"
-                },
-                "odrl:rightOperand": "ID 3.0 Trace"
-            }
-            ]
-        }
-        }
-    ]
-    }
-}''
-```
-
 #### Contract Definition
 
 To offer the DTR in his EDC Catalog, Bob has to create a contract definition. This contains linking the data asset with the policy.
 
 Action (Bob): Create the contract policy using the following command:
 
-```curl
+```shell
 curl -L 'https://dataprovider-controlplane.tx.test/management/v2/contractdefinitions' \
 -H 'Content-Type: application/json' \
 -H 'X-Api-Key: TEST2' \
@@ -149,8 +112,8 @@ curl -L 'https://dataprovider-controlplane.tx.test/management/v2/contractdefinit
     },
     "@id": "registry-contract-demo",
     "@type": "edc:ContractDefinition",
-    "edc:accessPolicyId": "id-3.0-trace-demo",
-    "edc:contractPolicyId": "id-3.0-trace-demo",
+    "edc:accessPolicyId": "registry-demo",
+    "edc:contractPolicyId": "registry-demo",
     "edc:assetsSelector": {
         "@type": "edc:Criterion",
         "edc:operandLeft": "https://w3id.org/edc/v0.0.1/ns/id",
@@ -231,18 +194,25 @@ curl -L 'https://dataprovider-controlplane.tx.test/management/v3/assets' \
 -H 'Content-Type: application/json' \
 -H 'X-Api-Key: TEST2' \
 --data-raw '{
-    "@context": {},
-    "@id": "${assetId}",
+    "@context": {
+        "edc":"https://w3id.org/edc/v0.0.1/ns/",
+        "odrl": "http://www.w3.org/ns/odrl/2/"
+    },
+    "@id": "dtr-asset-demo",
     "properties": {
         "description": "Product EDC Demo Asset"
     },
     "dataAddress": {
         "@type": "DataAddress",
-        "baseUrl": "${assetUrl}",
-        "type": "HttpData"
+        "baseUrl": "http://umbrella-dataprovider-submodelserver:8080",
+        "type": "HttpData",
+        "proxyQueryParams": "true",
+        "proxyPath": "true",
+        "proxyMethod": "false",
     }
 }'
 ```
+
 Action (Bob): Create a Policy with the following commands:
 
 ```shell
@@ -251,22 +221,23 @@ curl -L 'https://dataprovider-controlplane.tx.test/management/v2/policydefinitio
 -H 'X-Api-Key: TEST2' \
 --data-raw '{
     "@context": {
+        "edc":"https://w3id.org/edc/v0.0.1/ns/",
         "odrl": "http://www.w3.org/ns/odrl/2/"
     },
     "@type": "PolicyDefinitionRequestDto",
-    "@id": "${policyId}",
+    "@id": "dtr-policy-demo",
     "policy": {
-        "@type": "Policy",
-        "odrl:permission": [{
-            "odrl:action": "USE",
-            "odrl:constraint": {
-                "@type": "LogicalConstraint",
-                "odrl:or": []
-            }
-        }]
-    }
+    "@type": "Policy",
+    "odrl:permission": [{
+        "odrl:action": "USE",
+        "odrl:constraint": {
+            "@type": "LogicalConstraint",
+            "odrl:or": []
+        }
+    }]
 }'
 ```
+
 Action (Bob): Create a contract definition with the following commands:
 
 ```shell
@@ -275,17 +246,18 @@ curl -L 'https://dataprovider-controlplane.tx.test/management/v2/contractdefinit
 -H 'X-Api-Key: TEST2' \
 --data-raw '{
     "@context": {
+        "edc":"https://w3id.org/edc/v0.0.1/ns/",
         "odrl": "http://www.w3.org/ns/odrl/2/"
     },
-    "@id": "${contractDefinitionId}",
+    "@id": "dtr-contract-demo",
     "@type": "ContractDefinition",
-    "accessPolicyId": "${policyId}",
-    "contractPolicyId": "${policyId}",
+    "accessPolicyId": "dtr-policy-demo",
+    "contractPolicyId": "dtr-policy-demo",
     "assetsSelector" : {
         "@type" : "CriterionDto",
         "operandLeft": "https://w3id.org/edc/v0.0.1/ns/id",
         "operator": "=",
-        "operandRight": "${assetId}"
+        "operandRight": "dtr-asset-demo"
     }
 }'
 ```
